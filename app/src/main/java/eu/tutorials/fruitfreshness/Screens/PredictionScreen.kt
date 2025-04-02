@@ -1,6 +1,8 @@
 package eu.tutorials.fruitfreshness.Screens
-import androidx.compose.foundation.BorderStroke
+
+import android.net.Uri
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -11,18 +13,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
 import eu.tutorials.fruitfreshness.R
+import eu.tutorials.fruitfreshness.Screen
 
 @Composable
-fun PredictionScreen(navController: NavController) {
+fun PredictionScreen(navController: NavController, prediction: String, imageUri: Uri?) {
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color = Color.White)
     ) {
-
         Image(
             painter = painterResource(id = R.drawable.main_back),
             contentDescription = "Background",
@@ -30,30 +34,47 @@ fun PredictionScreen(navController: NavController) {
             contentScale = ContentScale.FillBounds
         )
 
-
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            imageUri?.let { uri ->
+                Image(
+                    painter = rememberAsyncImagePainter(uri),
+                    contentDescription = "Uploaded Image",
+                    modifier = Modifier
+                        .size(200.dp)
+                        .padding(10.dp),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
             Text(
-                text = "Processing Image...",
-                fontSize = 20.sp,
-                color = Color.Red
+                text = "Prediction Result",
+                fontSize = 24.sp,
+                color = Color.Black,
+                modifier = Modifier.padding(top = 10.dp)
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = prediction,
+                fontSize = 30.sp,
+                color = colorResource(id = R.color.BUTTONCOL),
+                modifier = Modifier.padding(top = 5.dp)
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             Button(
-                onClick = { navController.popBackStack() },
+                onClick = { navController.navigate(Screen.UploadScreen.route) },
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colorResource(id = R.color.BUTTONCOL)
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = colorResource(id = R.color.BUTTONCOL)),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
-                border = BorderStroke(1.dp, Color.Black),
             ) {
-                Text(text = "Go Back", fontSize = 18.sp, color = Color.White)
+                Text(text = "Upload Another Image", fontSize = 18.sp, color = Color.White)
             }
         }
     }

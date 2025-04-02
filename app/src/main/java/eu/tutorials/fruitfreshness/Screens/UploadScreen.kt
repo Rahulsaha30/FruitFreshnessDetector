@@ -1,5 +1,8 @@
 package eu.tutorials.fruitfreshness.Screens
+
+import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -20,9 +23,19 @@ import androidx.navigation.NavController
 import coil.compose.rememberImagePainter
 import eu.tutorials.fruitfreshness.R
 import eu.tutorials.fruitfreshness.Screen
+import eu.tutorials.fruitfreshness.network.RetrofitClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import retrofit2.HttpException
+import java.io.File
+import java.io.FileOutputStream
 
 @Composable
-fun UploadScreen(navController: NavController) {
+fun UploadScreen(navController: NavController, context: Context) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -30,17 +43,13 @@ fun UploadScreen(navController: NavController) {
         imageUri = uri
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-
+    Box(modifier = Modifier.fillMaxSize()) {
         Image(
             painter = painterResource(id = R.drawable.main_back),
             contentDescription = "Background",
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.FillBounds
         )
-
 
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -50,13 +59,11 @@ fun UploadScreen(navController: NavController) {
             Button(
                 onClick = { imagePickerLauncher.launch("image/*") },
                 shape = RoundedCornerShape(12.dp),
-               colors = ButtonDefaults.buttonColors(
-                    containerColor = colorResource(id = R.color.BUTTONCOL)
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = colorResource(id = R.color.BUTTONCOL)),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
                 border = BorderStroke(1.dp, Color.Black),
             ) {
-                Text(text = "Select Image from Gallery", fontSize = 18.sp,color = Color.White)
+                Text(text = "Select Image from Gallery", fontSize = 18.sp, color = Color.White)
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -72,17 +79,65 @@ fun UploadScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Button(
-                    onClick = { navController.navigate(Screen.PredictionScreen.route) },
+                    onClick = { uploadImage(context, uri, navController) },
                     shape = RoundedCornerShape(12.dp),
-                   colors = ButtonDefaults.buttonColors(
-                        containerColor = colorResource(id = R.color.BUTTONCOL)
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = colorResource(id = R.color.BUTTONCOL)),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
                     border = BorderStroke(1.dp, Color.Black),
                 ) {
-                    Text(text = "Analyze Image", fontSize = 18.sp,color = Color.White)
+                    Text(text = "Analyze Image", fontSize = 18.sp, color = Color.White)
                 }
             }
+        }
+    }
+}
+
+fun uploadImage(context: Context, uri: Uri, navController: NavController) {
+    CoroutineScope(Dispatchers.IO).launch {
+        try {
+            Log.d("UploadScreen", "Starting image upload...")
+
+            val file = File(context.cacheDir, "upload.jpg")
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val outputStream = FileOutputStream(file)
+
+            if (inputStream == null) {
+                Log.e("UploadScreen", "Error: inputStream is null. Unable to read image.")
+                return@launch
+            }
+
+            inputStream.copyTo(outputStream)
+            inputStream.close()
+            outputStream.close()
+
+            Log.d("UploadScreen", "File created: ${file.absolutePath} (Size: ${file.length()} bytes)")
+
+            if (!file.exists()) {
+                Log.e("UploadScreen", "Error: File does not exist after creation.")
+                return@launch
+            }
+
+            val requestFile = RequestBody.create("image/*".toMediaTypeOrNull(), file)
+            val imagePart = MultipartBody.Part.createFormData("file", file.name, requestFile)
+
+            Log.d("UploadScreen", "Sending request to API... File size: ${file.length()} bytes")
+            val response = RetrofitClient.apiService.uploadImage(imagePart).execute()
+
+            if (response.isSuccessful) {
+                val prediction = response.body()?.prediction ?: "Unknown"
+                Log.d("UploadScreen", "API Success: Prediction = $prediction")
+
+                CoroutineScope(Dispatchers.Main).launch {
+                    navController.currentBackStackEntry?.savedStateHandle?.set("imageUri", uri.toString())
+                    navController.navigate(Screen.PredictionScreen.route + "/$prediction")
+                }
+            } else {
+                Log.e("UploadScreen", "API Error: ${response.errorBody()?.string()}")
+            }
+        } catch (e: HttpException) {
+            Log.e("UploadScreen", "HTTP Error: ${e.code()} ${e.message()}")
+        } catch (e: Exception) {
+            Log.e("UploadScreen", "Upload failed", e)
         }
     }
 }

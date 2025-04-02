@@ -1,39 +1,23 @@
 package eu.tutorials.fruitfreshness
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import eu.tutorials.fruitfreshness.Screens.HomeScreen
-import eu.tutorials.fruitfreshness.Screens.PredictionScreen
-import eu.tutorials.fruitfreshness.Screens.SplashScreen
-import eu.tutorials.fruitfreshness.Screens.UploadScreen
-import eu.tutorials.fruitfreshness.ui.theme.FruitfreshnessTheme
-sealed class Screen(val route: String) {
-    object SplashScreen : Screen("Splash_screen")
-    object HomeScreen : Screen("home_screen")
-    object UploadScreen : Screen("upload_screen")
-    object PredictionScreen : Screen("prediction_screen")
-}
+import eu.tutorials.fruitfreshness.Screens.*
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            FruitfreshnessTheme {
-                Navigation()
-            }
+            Navigation()
         }
     }
 }
@@ -49,10 +33,15 @@ fun Navigation() {
             HomeScreen(navController)
         }
         composable(Screen.UploadScreen.route) {
-            UploadScreen(navController)
+            val context = LocalContext.current
+            UploadScreen(navController, context)
         }
-        composable(Screen.PredictionScreen.route) {
-            PredictionScreen(navController)
+        composable(Screen.PredictionScreen.route + "/{prediction}") { backStackEntry ->
+            val prediction = backStackEntry.arguments?.getString("prediction") ?: "Unknown"
+            val imageUriString = navController.previousBackStackEntry?.savedStateHandle?.get<String>("imageUri")
+            val imageUri = imageUriString?.let { Uri.parse(it) }
+
+            PredictionScreen(navController, prediction, imageUri)
         }
     }
 }
